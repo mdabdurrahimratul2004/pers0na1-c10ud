@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ratul's Cloud | Secure Vault</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#000000',      // Pure Black
+                            void: '#050505',      // Off-black for contrast
+                            card: 'rgba(20, 20, 20, 0.6)', // Glassy Black
+                            border: '#333333',    // Subtle dark border
+                            accent: '#FF0000',    // PURE BRIGHT RED
+                            accentDim: '#4a0000', // Dark Red for backgrounds
+                            text: '#FFFFFF',      // Pure White
+                            muted: '#9CA3AF'      // Neutral Gray
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #000000;
+            color: #FFFFFF;
+            user-select: none;
+            background-image:
+                radial-gradient(circle at 50% 0%, rgba(255, 0, 0, 0.15), transparent 70%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FF0000;
+        }
+
+        .glass {
+            background: rgba(15, 15, 15, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .loader {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #333;
+            border-bottom-color: #FF0000;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Security/Admin Utilities */
+        .admin-only {
+            display: none !important;
+        }
+
+        body.is-admin .admin-only {
+            display: flex !important;
+        }
+
+        body.is-admin .guest-only {
+            display: none !important;
+        }
+
+        .opacity-50 {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Premium Text Selection */
+        ::selection {
+            background: rgba(255, 0, 0, 0.3);
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col antialiased relative overflow-x-hidden">
+
+    <!-- Redirect/Loading Overlay -->
+    <div id="redirectOverlay" class="fixed inset-0 z-[200] bg-black flex flex-col items-center justify-center hidden">
+        <div class="loader mb-6"></div>
+        <h2 class="text-2xl font-bold text-white tracking-widest uppercase">Locating Artifact</h2>
+        <p class="text-brand-muted text-xs mt-2 font-mono">SECURE LINK REDIRECT</p>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal"
+        class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl hidden flex items-center justify-center p-4">
+        <div class="glass p-8 rounded-2xl w-full max-w-sm shadow-2xl relative overflow-hidden group">
+            <div
+                class="absolute inset-0 bg-gradient-to-b from-brand-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+            </div>
+
+            <h2 class="text-2xl font-bold mb-8 text-center tracking-tight text-white">SYSTEM<span
+                    class="text-brand-accent">ACCESS</span></h2>
+            <form onsubmit="handleLogin(event)" class="space-y-5 relative z-10">
+                <div class="group/input">
+                    <label
+                        class="text-[10px] font-mono text-brand-muted uppercase tracking-widest mb-1.5 block group-focus-within/input:text-brand-accent transition-colors">Identity</label>
+                    <input type="text" id="username"
+                        class="w-full bg-brand-void/50 border-b border-brand-border p-3 text-white focus:border-brand-accent focus:bg-brand-accent/5 focus:outline-none transition-all font-mono text-sm"
+                        placeholder="USER.ID">
+                </div>
+                <div class="group/input">
+                    <label
+                        class="text-[10px] font-mono text-brand-muted uppercase tracking-widest mb-1.5 block group-focus-within/input:text-brand-accent transition-colors">Passcode</label>
+                    <input type="password" id="password"
+                        class="w-full bg-brand-void/50 border-b border-brand-border p-3 text-white focus:border-brand-accent focus:bg-brand-accent/5 focus:outline-none transition-all font-mono text-sm"
+                        placeholder="••••••••">
+                </div>
+                <button type="submit"
+                    class="w-full bg-brand-text text-black font-bold py-3.5 rounded-none mt-4 hover:bg-brand-accent hover:text-white transition-all duration-300 uppercase tracking-widest text-xs">Authenticate</button>
+                <button type="button" onclick="closeLogin()"
+                    class="w-full text-brand-muted text-[10px] py-3 hover:text-white uppercase tracking-widest transition-colors">Cancel
+                    Connection</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal"
+        class="fixed inset-0 z-[90] bg-black/80 backdrop-blur-xl hidden flex items-center justify-center p-4">
+        <div class="glass p-8 rounded-2xl w-full max-w-sm relative shadow-2xl">
+            <button onclick="document.getElementById('shareModal').classList.add('hidden')"
+                class="absolute top-4 right-4 text-brand-muted hover:text-white transition-transform hover:rotate-90"><i
+                    class="ph ph-x text-lg"></i></button>
+            <h3 class="text-lg font-bold mb-6 tracking-wide text-center">SHARE ARTIFACT</h3>
+
+            <div
+                class="flex justify-center mb-8 bg-white p-3 rounded-none w-fit mx-auto shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                <div id="qrcode"></div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-[10px] text-brand-muted font-mono uppercase tracking-widest">Secure Endpoint</label>
+                <div class="flex gap-2">
+                    <input type="text" id="shareLink" readonly
+                        class="flex-1 bg-brand-void border border-brand-border rounded-none px-3 py-2 text-[10px] text-brand-muted font-mono focus:text-white transition-colors focus:border-brand-accent outline-none">
+                    <button onclick="copyShareLink()"
+                        class="bg-brand-accent text-white px-4 py-2 font-bold text-xs hover:bg-red-600 transition-colors uppercase tracking-wider">Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Editor Modal -->
+    <div id="editorModal"
+        class="fixed inset-0 z-[95] bg-black/95 backdrop-blur-3xl hidden flex flex-col p-4 animate-in fade-in duration-200">
+        <div class="flex justify-between items-center mb-4 max-w-6xl mx-auto w-full border-b border-brand-border pb-4">
+            <h3 class="text-xl font-bold text-white flex items-center gap-3">
+                <span class="w-2 h-2 bg-brand-accent rounded-full animate-pulse"></span>
+                EDITOR_MODE
+            </h3>
+            <div class="flex gap-3">
+                <button onclick="saveEdit()"
+                    class="bg-brand-accent hover:bg-red-600 text-white px-6 py-2 rounded-none text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all hover:shadow-[0_0_20px_rgba(255,0,0,0.4)]">
+                    <i class="ph-bold ph-floppy-disk"></i> SAVE
+                </button>
+                <button onclick="closeEditor()"
+                    class="bg-transparent border border-brand-border hover:bg-white/10 text-brand-muted hover:text-white px-6 py-2 rounded-none text-xs font-mono uppercase transition-colors">Close</button>
+            </div>
+        </div>
+        <div class="flex-1 max-w-6xl mx-auto w-full relative">
+            <textarea id="editorContent"
+                class="w-full h-full bg-brand-void/50 border border-brand-border p-8 font-mono text-sm text-gray-300 focus:outline-none focus:border-brand-accent/50 resize-none leading-relaxed shadow-2xl backdrop-blur-md"></textarea>
+            <input type="hidden" id="editingFileId">
+            <input type="hidden" id="editingFileName">
+        </div>
+    </div>
+
+    <!-- Floating HUD Nav -->
+    <nav
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl glass rounded-full border border-brand-border/50 px-6 py-3 shadow-2xl backdrop-blur-3xl animate-in slide-in-from-top-4 duration-700">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div
+                    class="w-10 h-10 rounded-full bg-brand-accent/10 flex items-center justify-center border border-brand-accent/20 relative group overflow-hidden">
+                    <div
+                        class="absolute inset-0 bg-brand-accent/20 blur-xl group-hover:bg-brand-accent/40 transition-all">
+                    </div>
+                    <i class="ph-bold ph-cloud text-brand-accent relative z-10"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm tracking-widest uppercase text-white leading-none">Ratul's Cloud</h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span id="connectionStatus"
+                            class="text-[9px] font-mono text-brand-muted flex items-center gap-1.5 uppercase">
+                            <span class="w-1 h-1 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
+                            ONLINE
+                        </span>
+                        <span id="apiSource"
+                            class="text-[9px] font-mono text-brand-muted/50 hidden md:inline-block"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <!-- Admin Badge -->
+                <div
+                    class="hidden admin-only items-center gap-2 bg-brand-accent/10 border border-brand-accent/20 px-4 py-1.5 rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></span>
+                    <span class="text-[10px] font-bold text-brand-accent uppercase tracking-widest">ADMIN_ACTIVE</span>
+                </div>
+
+                <button id="loginBtn" onclick="openLogin()"
+                    class="guest-only text-[10px] font-mono text-brand-muted hover:text-white transition-colors tracking-widest uppercase">
+                    [ LOGIN_SEQ ]
+                </button>
+                <button id="logoutBtn" onclick="handleLogout()"
+                    class="admin-only text-[10px] font-mono text-brand-muted hover:text-red-500 transition-colors tracking-widest uppercase">
+                    [ TERMINATE ]
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 pt-32 pb-16 relative">
+
+        <!-- Stats / Header -->
+        <div class="mb-16 flex flex-col md:flex-row items-end justify-between gap-6 relative z-10">
+            <div>
+                <h2 class="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter leading-none">
+                    SECURE<br><span
+                        class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-red-900">VAULT</span>
+                </h2>
+                <p
+                    class="text-brand-muted text-xs font-mono tracking-wide max-w-md border-l border-brand-accent/40 pl-4 py-1">
+                    > ENCRYPTED STORAGE<br>
+                    > AUTO-PURGE: 24H (GUEST)<br>
+                    > ADMIN_STATE: <span class="text-brand-accent">PERMANENT</span>
+                </p>
+            </div>
+
+            <!-- Upload Trigger -->
+            <div class="flex gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <input type="file" id="fileInput" class="hidden" onchange="handleFileUpload(this)">
+                <button onclick="document.getElementById('fileInput').click()"
+                    class="bg-white text-black hover:bg-brand-accent hover:text-white font-bold px-8 py-4 rounded-none shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all active:scale-95 flex items-center gap-3 uppercase tracking-wider text-xs">
+                    <i class="ph-bold ph-upload-simple text-lg"></i> UPLOAD_DATA
+                </button>
+                <button onclick="toggleTextForm()"
+                    class="bg-brand-void/50 border border-brand-border text-brand-muted hover:border-brand-accent hover:text-white px-5 py-4 rounded-none transition-all active:scale-95">
+                    <i class="ph-bold ph-text-t text-lg"></i>
+                </button>
+                <!-- Force Refresh (For debugging) -->
+                <button onclick="fetchFiles()"
+                    class="admin-only bg-transparent border border-brand-border text-brand-muted hover:text-white px-4 py-4 rounded-none hover:rotate-180 transition-all duration-500"
+                    title="Force Refresh">
+                    <i class="ph-bold ph-arrows-clockwise text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Text Upload Form (Collapsible) -->
+        <div id="textForm"
+            class="hidden mb-12 glass border border-brand-border p-8 animate-in slide-in-from-top-4 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-1 h-full bg-brand-accent"></div>
+            <h3 class="font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-widest text-xs"><i
+                    class="ph ph-code text-brand-accent"></i> Text_Artifact_Entry</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="md:col-span-1">
+                    <input type="text" id="txtFileName" placeholder="FILENAME.TXT"
+                        class="w-full bg-brand-void border-b border-brand-border p-4 text-xs font-mono text-white focus:border-brand-accent focus:outline-none transition-colors">
+                </div>
+                <div class="md:col-span-3">
+                    <textarea id="txtContent" rows="3" placeholder="> INPUT_DATA..."
+                        class="w-full bg-brand-void border border-brand-border p-4 text-xs font-mono text-gray-400 focus:border-brand-accent focus:outline-none transition-colors"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end mt-4">
+                <button onclick="handleTextUpload()"
+                    class="bg-brand-accent/10 border border-brand-accent/50 hover:bg-brand-accent hover:text-white text-brand-accent px-8 py-2 text-[10px] font-bold uppercase tracking-widest transition-all">Execute
+                    Save</button>
+            </div>
+        </div>
+
+        <!-- Filters (Admin Only) -->
+        <div class="admin-only mb-8 flex gap-3 border-b border-brand-border/30 pb-4">
+            <button onclick="fetchFiles('all')"
+                class="text-[10px] font-bold uppercase tracking-widest bg-brand-void border border-brand-border px-4 py-2 text-brand-muted hover:text-white hover:border-brand-accent transition-all">All
+                Artifacts</button>
+            <button onclick="fetchFiles('admin')"
+                class="text-[10px] font-bold uppercase tracking-widest bg-brand-void border border-brand-border px-4 py-2 text-brand-muted hover:text-white hover:border-brand-accent transition-all">My
+                Uploads</button>
+        </div>
+
+        <!-- Grid -->
+        <div id="fileGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Items injected here -->
+        </div>
+
+        <div id="loading" class="hidden py-24 text-center">
+            <div class="loader mb-4"></div>
+            <p class="text-[10px] font-mono text-brand-muted animate-pulse">ESTABLISHING CONNECTION...</p>
+        </div>
+
+        <div id="emptyState"
+            class="hidden py-32 text-center border border-dashed border-brand-border/30 opacity-50 relative group">
+            <div class="absolute inset-0 bg-brand-accent/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <i
+                class="ph ph-ghost text-6xl mb-4 text-brand-border group-hover:text-brand-accent/50 transition-colors"></i>
+            <p class="text-xs font-mono text-brand-muted uppercase tracking-widest">Sector Empty</p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass border-t border-brand-border/30 bg-black/50 py-8 mt-auto relative z-10 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 text-center flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-[10px] text-brand-muted font-mono uppercase tracking-widest">
+                Created and maintained by MD Abdur Rahim Ratul
+            </p>
+
+            <div class="flex items-center gap-6 admin-only">
+                <a href="mailto:arahimratul2004@gmail.com"
+                    class="text-[10px] text-brand-muted hover:text-white transition-colors flex items-center gap-2 uppercase tracking-widest font-mono">
+                    <i class="ph-bold ph-envelope-simple"></i> Contact Admin
+                </a>
+                <a href="https://ratul.site" target="_blank"
+                    class="text-[10px] text-brand-muted hover:text-brand-accent transition-colors flex items-center gap-2 uppercase tracking-widest font-mono">
+                    <i class="ph-bold ph-globe"></i> Portfolio
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notification Toast -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 z-[100] transform translate-y-20 opacity-0 transition-all duration-300">
+        <div
+            class="glass border border-brand-accent/20 p-5 rounded-none shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center gap-4 min-w-[300px] relative overflow-hidden group">
+            <div
+                class="absolute inset-0 bg-brand-accent/5 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500">
+            </div>
+            <div id="toastIcon" class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]">
+            </div>
+            <span id="toastMsg"
+                class="text-xs font-bold text-white uppercase tracking-widest font-mono relative z-10">Operation
+                Successful</span>
+        </div>
+    </div>
+
+    <!-- LOGIC -->
+    <script>
+        // --- 1. CONFIGURATION & REDUNDANCY ---
+
+        const API_CONFIGS = [
+            {
+                name: "Primary Node",
+                url: 'https://dhljjbyqmibubfjqzeuu.supabase.co',
+                key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRobGpqYnlxbWlidWJmanF6ZXV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1MTMxNjgsImV4cCI6MjA4MzA4OTE2OH0.KgvHF654h8HBkCBAWdlr9Lix0ZailTO2oqMCDcwZ84w'
+            },
+            {
+                name: "Backup Node",
+                url: 'https://pnnqxvwdjiyayaeubtkp.supabase.co',
+                key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBubnF4dndkaml5YXlhZXVidGtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1MTU4NzAsImV4cCI6MjA4MzA5MTg3MH0.48eqgHqqBTdfAeuWYhyeH-oeY2GIt5vVfYNd5BlXFck'
+            }
+        ];
+
+        let activeClient;
+        let currentSessionId = localStorage.getItem('ratul_session_id');
+
+        if (!currentSessionId) {
+            currentSessionId = 'guest_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('ratul_session_id', currentSessionId);
+        }
+
+        // --- 2. AUTHENTICATION ---
+        const ADMIN_USER = 'ratul123';
+        const ADMIN_PASS = 'hiratul123';
+
+        function isAdmin() {
+            return localStorage.getItem('ratul_is_admin') === 'true';
+        }
+
+        function updateUIForRole() {
+            if (isAdmin()) {
+                document.body.classList.add('is-admin');
+            } else {
+                document.body.classList.remove('is-admin');
+            }
+        }
+
+        function openLogin() { document.getElementById('loginModal').classList.remove('hidden'); }
+        function closeLogin() { document.getElementById('loginModal').classList.add('hidden'); }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+
+            if (u === ADMIN_USER && p === ADMIN_PASS) {
+                localStorage.setItem('ratul_is_admin', 'true');
+                updateUIForRole();
+                closeLogin();
+                showToast('Welcome back, Admin Ratul', 'success');
+                fetchFiles();
+            } else {
+                showToast('Access Denied. Invalid Credentials.', 'error');
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('ratul_is_admin');
+            updateUIForRole();
+            showToast('Logged out successfully', 'neutral');
+            location.reload();
+        }
+
+        // --- 3. INIT & CONNECTION ---
+
+        async function initApp() {
+            updateUIForRole();
+
+            // Check if this is a shared link visit
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedId = urlParams.get('f');
+
+            if (sharedId) {
+                document.getElementById('redirectOverlay').classList.remove('hidden');
+            }
+
+            // Try connecting
+            for (const config of API_CONFIGS) {
+                try {
+                    // Disable persistSession to prevent iframe errors
+                    const client = window.supabase.createClient(config.url, config.key, {
+                        auth: {
+                            persistSession: false,
+                            detectSessionInUrl: false,
+                            autoRefreshToken: false
+                        }
+                    });
+
+                    // Test connection
+                    const { count, error } = await client.from('files').select('*', { count: 'exact', head: true });
+
+                    if (!error || error.code === 'PGRST116') {
+                        activeClient = client;
+                        document.getElementById('apiSource').textContent = `[NODE: ${config.name}]`;
+                        console.log(`Connected to ${config.name}`);
+
+                        if (sharedId) {
+                            await handleSharedRedirect(sharedId);
+                            return;
+                        }
+
+                        cleanupOldFiles();
+                        fetchFiles();
+                        return;
+                    }
+                } catch (e) {
+                    console.warn(`Failed to connect to ${config.name}`, e);
+                }
+            }
+
+            document.getElementById('connectionStatus').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> OFFLINE';
+            showToast('CRITICAL: All Database Nodes Failed', 'error');
+
+            if (sharedId) {
+                document.getElementById('redirectOverlay').innerHTML = `<h2 class="text-red-500 font-bold">Link Expired or Server Offline</h2>`;
+            }
+        }
+
+        async function handleSharedRedirect(fileId) {
+            try {
+                const { data, error } = await activeClient.from('files').select('file_url, display_name').eq('id', fileId).single();
+                if (error || !data) throw new Error('File not found');
+
+                document.getElementById('redirectOverlay').innerHTML = `
+                    <div class="text-center">
+                        <div class="mb-4 text-green-500 text-4xl"><i class="ph-fill ph-check-circle"></i></div>
+                        <h2 class="text-xl font-bold text-white">Artifact Found</h2>
+                        <p class="text-brand-muted text-sm mb-4">${data.display_name}</p>
+                        <a href="${data.file_url}" class="bg-brand-accent text-white px-6 py-2 rounded-lg font-bold">Download Now</a>
+                        <br>
+                        <a href="/" class="text-xs text-gray-500 mt-4 inline-block hover:text-white">Go to Dashboard</a>
+                    </div>
+                `;
+            } catch (err) {
+                document.getElementById('redirectOverlay').innerHTML = `
+                    <div class="text-center">
+                        <div class="mb-4 text-red-500 text-4xl"><i class="ph-fill ph-warning"></i></div>
+                        <h2 class="text-xl font-bold text-white">Artifact Not Found</h2>
+                        <p class="text-brand-muted text-sm mb-4">This link may have expired or been deleted.</p>
+                        <a href="/" class="text-xs text-white underline">Return to Dashboard</a>
+                    </div>
+                `;
+            }
+        }
+
+        // --- 4. CORE FUNCTIONS ---
+
+        // Helper: Retry operation for stability
+        async function retryOperation(operation, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    return await operation();
+                } catch (err) {
+                    if (i === maxRetries - 1) throw err;
+                    if (err.message && err.message.includes('Failed to fetch')) {
+                        await new Promise(res => setTimeout(res, 500 * (i + 1))); // exponential backoff
+                        console.log(`Retrying operation... (${i + 1})`);
+                    } else {
+                        throw err; // Don't retry logic errors
+                    }
+                }
+            }
+        }
+
+        function formatTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 10) return "0-10s now";
+            if (seconds < 60) return `${seconds}s`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} Min`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} Hour${hours > 1 ? 's' : ''}`;
+            const days = Math.floor(hours / 24);
+            return `${days} Day${days > 1 ? 's' : ''}`;
+        }
+
+        async function cleanupOldFiles() {
+            if (!activeClient) return;
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+            // Fire and forget cleanup
+            activeClient.from('files').delete()
+                .eq('is_pinned', false)
+                .neq('uploader_type', 'admin')
+                .lt('created_at', yesterday)
+                .then(({ error }) => {
+                    if (error && error.code !== '42703') console.warn("Cleanup warning:", error);
+                });
+        }
+
+        async function fetchFiles(filter = 'default') {
+            if (!activeClient) return;
+
+            const grid = document.getElementById('fileGrid');
+            const loader = document.getElementById('loading');
+            const empty = document.getElementById('emptyState');
+
+            if (grid.children.length === 0) {
+                grid.innerHTML = '';
+                loader.classList.remove('hidden');
+                empty.classList.add('hidden');
+            }
+
+            try {
+                // Kept pin sorting for DB structure compatibility, but UI functionality is removed
+                let query = activeClient.from('files').select('*').order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
+
+                const { data, error } = await query;
+
+                if (error) {
+                    if (error.code === '42703') {
+                        showToast('Run fix_permissions.sql!', 'error');
+                        const { data: fallbackData } = await activeClient.from('files').select('*').order('created_at', { ascending: false });
+                        renderFiles(fallbackData || [], filter, grid, empty);
+                        return;
+                    }
+                    throw error;
+                }
+
+                renderFiles(data || [], filter, grid, empty);
+
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to load artifacts', 'error');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function renderFiles(data, filter, grid, empty) {
+            grid.innerHTML = '';
+
+            const visibleFiles = data.filter(file => {
+                const isPinned = file.is_pinned === true; // Strict check
+                const uploaderType = file.uploader_type || 'guest';
+                const sessionId = file.session_id || '';
+
+                if (isAdmin()) {
+                    if (filter === 'admin') return uploaderType === 'admin';
+                    return true;
+                }
+                return isPinned || sessionId === currentSessionId;
+            });
+
+            if (visibleFiles.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                empty.classList.add('hidden');
+                visibleFiles.forEach(file => {
+                    grid.appendChild(createFileCard(file));
+                });
+            }
+        }
+
+        function createFileCard(file) {
+            const isAdminUpload = file.uploader_type === 'admin';
+            const userIsAdmin = isAdmin();
+            const pinned = file.is_pinned === true;
+
+            const div = document.createElement('div');
+            div.id = `file-${file.id}`;
+            div.className = `glass transition-all duration-300 group relative overflow-hidden flex flex-col`;
+            // Add custom style specifically for grid layout
+            div.style.borderRadius = "0px";
+            div.style.border = "1px solid rgba(255,255,255,0.1)";
+
+            const activeClass = pinned ? 'border-brand-accent/50 shadow-[0_0_30px_rgba(255,0,0,0.1)]' : 'hover:border-brand-accent/40 hover:shadow-[0_10px_40px_-10px_rgba(255,0,0,0.2)]';
+            div.className += ` ${activeClass} hover:-translate-y-1`;
+
+            let badges = '';
+            if (pinned) badges += `<span class="text-[9px] bg-brand-accent text-white px-1.5 py-0.5 font-bold tracking-widest uppercase mb-1 inline-block">PINNED</span>`;
+            if (isAdminUpload) {
+                badges += `<span class="text-[9px] bg-brand-void border border-blue-500/30 text-white px-1.5 py-0.5 flex items-center gap-1 uppercase tracking-widest">BY RATUL <i class="ph-fill ph-check-circle text-blue-500 text-xs"></i></span>`;
+            }
+
+            let actions = '';
+            const canInteract = userIsAdmin || !isAdminUpload;
+
+            if (canInteract) {
+                actions += `
+                    <button onclick="downloadFile('${file.file_url}', '${file.display_name}')" class="w-8 h-8 flex items-center justify-center hover:bg-white hover:text-black text-brand-muted transition-colors rounded-none border-r border-brand-border/20" title="Download">
+                        <i class="ph-bold ph-download-simple"></i>
+                    </button>
+                    <button onclick="openShare('${file.id}')" class="w-8 h-8 flex items-center justify-center hover:bg-white hover:text-black text-brand-muted transition-colors rounded-none" title="Share Endpoint">
+                        <i class="ph-bold ph-share-network"></i>
+                    </button>
+                `;
+            }
+
+            if (userIsAdmin) {
+                actions += `
+                    <div class="h-4 w-[1px] bg-brand-border/30 mx-1"></div>
+                    <button onclick="deleteFile('${file.id}', '${file.file_name}')" class="w-8 h-8 flex items-center justify-center hover:bg-red-600 hover:text-white text-brand-muted transition-colors rounded-none" title="Delete">
+                        <i class="ph-bold ph-trash"></i>
+                    </button>
+                `;
+
+                const fType = file.file_type || '';
+                const fName = file.file_name || '';
+
+                if (fType.includes('text') || fType.includes('javascript') || fType.includes('json') || fName.endsWith('.txt')) {
+                    actions += `
+                        <button onclick="editFile('${file.id}', '${fName}')" class="w-8 h-8 flex items-center justify-center hover:bg-blue-600 hover:text-white text-brand-muted transition-colors rounded-none" title="Edit Code">
+                            <i class="ph-bold ph-pencil-simple"></i>
+                        </button>
+                    `;
+                }
+            }
+
+            const timeDisplay = formatTimeAgo(file.created_at);
+            const iconClass = getFileIcon(file.file_type || '');
+
+            div.innerHTML = `
+                <!-- Gradient Hover Effect -->
+                <div class="absolute inset-0 bg-gradient-to-br from-brand-accent/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                
+                <div class="p-5 flex items-start gap-4 relative z-10">
+                    <div class="w-12 h-12 bg-brand-void border border-brand-border flex items-center justify-center text-2xl text-brand-muted group-hover:text-brand-accent group-hover:border-brand-accent/50 transition-colors">
+                        <i class="ph-fill ${iconClass}"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        ${badges ? `<div class="flex flex-wrap gap-1 mb-1">${badges}</div>` : ''}
+                        <h4 class="font-bold text-sm text-white truncate w-full font-mono md:max-w-[180px]" title="${file.display_name}">${file.display_name}</h4>
+                        <span class="text-[9px] font-mono text-brand-muted/50 uppercase tracking-widest block mt-1">${timeDisplay}</span>
+                    </div>
+                </div>
+
+                <div class="mt-auto border-t border-brand-border/30 flex items-center justify-end bg-black/20 backdrop-blur-sm">
+                    ${actions}
+                </div>
+            `;
+            return div;
+        }
+
+        // --- 5. ACTIONS ---
+
+        async function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            uploadLogic(file, file.name);
+        }
+
+        async function handleTextUpload() {
+            const name = document.getElementById('txtFileName').value || 'untitled';
+            const content = document.getElementById('txtContent').value;
+            if (!content) return showToast('Content is empty', 'error');
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const file = new File([blob], name.endsWith('.txt') ? name : `${name}.txt`, { type: 'text/plain' });
+
+            await uploadLogic(file, name);
+
+            document.getElementById('txtFileName').value = '';
+            document.getElementById('txtContent').value = '';
+            document.getElementById('textForm').classList.add('hidden');
+        }
+
+        async function uploadLogic(file, displayName) {
+            if (!activeClient) return showToast('Database not connected', 'error');
+            showToast('Uploading to secure cloud...', 'neutral');
+
+            try {
+                const timestamp = Date.now();
+                const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const filePath = `${timestamp}_${cleanName}`;
+
+                const { error: uploadError } = await activeClient.storage.from('uploads').upload(filePath, file);
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = activeClient.storage.from('uploads').getPublicUrl(filePath);
+
+                const payload = {
+                    display_name: displayName,
+                    file_name: filePath,
+                    file_url: publicUrl,
+                    file_type: file.type,
+                    size_bytes: file.size,
+                    uploader_type: isAdmin() ? 'admin' : 'guest',
+                    session_id: currentSessionId,
+                    is_pinned: false
+                };
+
+                const { error: dbError } = await activeClient.from('files').insert(payload);
+
+                if (dbError) {
+                    if (dbError.code === '42703') {
+                        // Retry legacy
+                        const legacyPayload = {
+                            display_name: displayName,
+                            file_name: filePath,
+                            file_url: publicUrl,
+                            file_type: file.type,
+                            size_bytes: file.size
+                        };
+                        const { error: retryError } = await activeClient.from('files').insert(legacyPayload);
+                        if (retryError) throw retryError;
+                    } else {
+                        throw dbError;
+                    }
+                }
+
+                showToast('Upload Complete', 'success');
+                fetchFiles();
+
+            } catch (err) {
+                console.error(err);
+                showToast('Upload Failed: ' + (err.message || ''), 'error');
+            }
+        }
+
+        // 100000% Perfect Delete Logic:
+        // 1. Optimistic UI update (hide immediately)
+        // 2. Retry Logic for Network stability
+        // 3. Database Delete is priority (UI truth)
+        // 4. Storage Delete is best-effort (cleanup)
+        async function deleteFile(id, fileName) {
+            if (!activeClient) return;
+            if (!confirm('Permanently delete this artifact?')) return;
+
+            // OPTIMISTIC UPDATE: Hide card immediately
+            const card = document.getElementById(`file-${id}`);
+            if (card) {
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+            }
+            showToast('Destroying Artifact...', 'neutral');
+
+            try {
+                await retryOperation(async () => {
+                    // 1. Delete from DB (The most important part for UI)
+                    const { error: dbError } = await activeClient.from('files').delete().eq('id', id);
+                    if (dbError) throw dbError;
+
+                    // 2. Delete from Storage (Cleanup - don't fail entire op if this fails)
+                    // We don't await this or we wrap it in a separate try/catch so it doesn't block the UI success
+                    activeClient.storage.from('uploads').remove([fileName]).catch(e => console.warn("Storage cleanup warning:", e));
+                });
+
+                showToast('Artifact Destroyed', 'success');
+                // Remove from DOM completely
+                if (card) card.remove();
+
+                // Check if empty
+                if (document.getElementById('fileGrid').children.length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                }
+
+            } catch (err) {
+                console.error("Delete failed:", err);
+                // Revert optimistic update
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                }
+
+                let errMsg = 'Network Error';
+                if (err.code) errMsg = `Err ${err.code}`;
+                else if (err.message) errMsg = err.message;
+
+                showToast(`Delete Failed: ${errMsg}`, 'error');
+            }
+        }
+
+        // --- EDIT LOGIC ---
+        async function editFile(id, fileName) {
+            if (!activeClient) return;
+            showToast('Fetching content...', 'neutral');
+            try {
+                const { data, error } = await activeClient.storage.from('uploads').download(fileName);
+                if (error) throw error;
+
+                const text = await data.text();
+
+                document.getElementById('editorContent').value = text;
+                document.getElementById('editingFileId').value = id;
+                document.getElementById('editingFileName').value = fileName;
+
+                document.getElementById('editorModal').classList.remove('hidden');
+            } catch (e) {
+                showToast('Cannot read file content', 'error');
+            }
+        }
+
+        async function saveEdit() {
+            if (!activeClient) return;
+            const id = document.getElementById('editingFileId').value;
+            const fileName = document.getElementById('editingFileName').value;
+            const content = document.getElementById('editorContent').value;
+
+            try {
+                const blob = new Blob([content], { type: 'text/plain' });
+                const file = new File([blob], fileName, { type: 'text/plain' });
+
+                const { error } = await activeClient.storage.from('uploads').upload(fileName, file, { upsert: true });
+                if (error) throw error;
+
+                showToast('File content updated', 'success');
+                closeEditor();
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to save changes', 'error');
+            }
+        }
+
+        function closeEditor() {
+            document.getElementById('editorModal').classList.add('hidden');
+        }
+
+        // --- SHORT LINK LOGIC ---
+        function openShare(fileId) {
+            const modal = document.getElementById('shareModal');
+            const qrContainer = document.getElementById('qrcode');
+            const linkInput = document.getElementById('shareLink');
+
+            const shortLink = `${window.location.origin}${window.location.pathname}?f=${fileId}`;
+
+            qrContainer.innerHTML = '';
+            linkInput.value = shortLink;
+
+            new QRCode(qrContainer, {
+                text: shortLink,
+                width: 128,
+                height: 128,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function copyShareLink() {
+            const copyText = document.getElementById("shareLink");
+            copyText.select();
+            document.execCommand("copy");
+            showToast('Short Link copied!', 'success');
+        }
+
+        function downloadFile(url, name) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- UTILS ---
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const text = document.getElementById('toastMsg');
+
+            text.textContent = msg;
+            icon.className = `w-2 h-2 rounded-full ${type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        function getFileIcon(type) {
+            if (type.includes('image')) return 'ph-image';
+            if (type.includes('video')) return 'ph-film-strip';
+            if (type.includes('audio')) return 'ph-speaker-high';
+            if (type.includes('pdf')) return 'ph-file-pdf';
+            if (type.includes('text') || type.includes('code')) return 'ph-file-code';
+            return 'ph-file';
+        }
+
+        function toggleTextForm() {
+            const form = document.getElementById('textForm');
+            form.classList.toggle('hidden');
+        }
+
+        // --- SECURITY ---
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.onkeydown = function (e) {
+            if (e.keyCode == 123) return false; // F12
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Ctrl+Shift+I
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false; // Ctrl+Shift+C
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U
+        };
+
+        // --- RUN ---
+        window.addEventListener('DOMContentLoaded', initApp);
+
+    </script>
+</body>
+
+</html>
